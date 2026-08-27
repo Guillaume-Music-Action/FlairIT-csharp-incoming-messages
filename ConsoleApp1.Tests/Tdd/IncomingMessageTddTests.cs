@@ -121,4 +121,23 @@ public class IncomingMessageTddTests
         act.Should().Throw<ArgumentException>()
            .WithMessage("*id*");
     }
+
+    [Fact]
+    public void Parse_WrongTimestampType_ThrowsArgumentException()
+    {
+        // Arrange
+        var raw = new Dictionary<string, object?>
+        {
+            ["id"] = "abc-123",
+            ["timestamp"] = 1234567890,
+            ["payload"] = JsonSerializer.Deserialize<JsonElement>("""{"foo":"bar"}""")
+        };
+
+        // Act
+        Action act = () => IncomingMessageTdd.Parse(raw);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+           .WithMessage("*timestamp*");
+    }
 }

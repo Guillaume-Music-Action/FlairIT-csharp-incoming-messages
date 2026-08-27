@@ -1,6 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Text.Json;
+using ConsoleApp1.Tests.Tooling;
 using ConsoleApp1.Tdd;
 using Xunit;
 using AwesomeAssertions;
@@ -12,132 +11,91 @@ public class IncomingMessageTddTests
     [Fact]
     public void Parse_ValidMessage_ReturnsIncomingMessageWithCorrectValues()
     {
-        // Arrange
-        var raw = new Dictionary<string, object?>
-        {
-            ["id"] = "abc-123",
-            ["timestamp"] = "2023-01-01T12:00:00+02:00",
-            ["payload"] = JsonSerializer.Deserialize<JsonElement>("""{"foo":"bar"}""")
-        };
-
-        // Act
-        var result = IncomingMessageTdd.Parse(raw);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.Id.Should().Be("abc-123");
-        result.Timestamp.Should().Be(new DateTimeOffset(2023, 1, 1, 10, 0, 0, TimeSpan.Zero));
-        result.Payload.ValueKind.Should().Be(JsonValueKind.Object);
+        IncomingMessageScenario.Given()
+            .WithId("abc-123")
+            .WithTimestamp("2023-01-01T12:00:00+02:00")
+            .WithValidPayload()
+            .Should()
+            .WithId("abc-123")
+            .WithTimestamp(new DateTimeOffset(2023, 1, 1, 10, 0, 0, TimeSpan.Zero))
+            .WithPayload(JsonValueKind.Object)
+            .WithPayloadContaining("foo", "bar");
     }
 
     [Fact]
     public void Parse_MissingId_ThrowsArgumentException()
     {
-        // Arrange
-        var raw = new Dictionary<string, object?>
-        {
-            ["timestamp"] = "2023-01-01T12:00:00+02:00",
-            ["payload"] = JsonSerializer.Deserialize<JsonElement>("""{"foo":"bar"}""")
-        };
-
-        // Act
-        Action act = () => IncomingMessageTdd.Parse(raw);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-           .WithMessage("*id*");
+        IncomingMessageScenario.Given()
+            .WithoutId()
+            .WithTimestamp("2023-01-01T12:00:00+02:00")
+            .WithValidPayload()
+            .ShouldThrow()
+            .ArgumentException("id");
     }
 
     [Fact]
     public void Parse_MissingTimestamp_ThrowsArgumentException()
     {
-        // Arrange
-        var raw = new Dictionary<string, object?>
-        {
-            ["id"] = "abc-123",
-            ["payload"] = JsonSerializer.Deserialize<JsonElement>("""{"foo":"bar"}""")
-        };
-
-        // Act
-        Action act = () => IncomingMessageTdd.Parse(raw);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-           .WithMessage("*timestamp*");
+        IncomingMessageScenario.Given()
+            .WithId("abc-123")
+            .WithoutTimestamp()
+            .WithValidPayload()
+            .ShouldThrow()
+            .ArgumentException("timestamp");
     }
 
     [Fact]
     public void Parse_MissingPayload_ThrowsArgumentException()
     {
-        // Arrange
-        var raw = new Dictionary<string, object?>
-        {
-            ["id"] = "abc-123",
-            ["timestamp"] = "2023-01-01T12:00:00+02:00"
-        };
-
-        // Act
-        Action act = () => IncomingMessageTdd.Parse(raw);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-           .WithMessage("*payload*");
+        IncomingMessageScenario.Given()
+            .WithId("abc-123")
+            .WithTimestamp("2023-01-01T12:00:00+02:00")
+            .WithoutPayload()
+            .ShouldThrow()
+            .ArgumentException("payload");
     }
 
     [Fact]
     public void Parse_InvalidTimestamp_ThrowsFormatException()
     {
-        // Arrange
-        var raw = new Dictionary<string, object?>
-        {
-            ["id"] = "abc-123",
-            ["timestamp"] = "not-a-valid-timestamp",
-            ["payload"] = JsonSerializer.Deserialize<JsonElement>("""{"foo":"bar"}""")
-        };
-
-        // Act
-        Action act = () => IncomingMessageTdd.Parse(raw);
-
-        // Assert
-        act.Should().Throw<FormatException>()
-           .WithMessage("*not-a-valid-timestamp*");
+        IncomingMessageScenario.Given()
+            .WithId("abc-123")
+            .WithTimestamp("not-a-valid-timestamp")
+            .WithValidPayload()
+            .ShouldThrow()
+            .FormatException("not-a-valid-timestamp");
     }
 
     [Fact]
     public void Parse_WrongIdType_ThrowsArgumentException()
     {
-        // Arrange
-        var raw = new Dictionary<string, object?>
-        {
-            ["id"] = 123,
-            ["timestamp"] = "2023-01-01T12:00:00+02:00",
-            ["payload"] = JsonSerializer.Deserialize<JsonElement>("""{"foo":"bar"}""")
-        };
-
-        // Act
-        Action act = () => IncomingMessageTdd.Parse(raw);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-           .WithMessage("*id*");
+        IncomingMessageScenario.Given()
+            .WithId(123)
+            .WithTimestamp("2023-01-01T12:00:00+02:00")
+            .WithValidPayload()
+            .ShouldThrow()
+            .ArgumentException("id");
     }
 
     [Fact]
     public void Parse_WrongTimestampType_ThrowsArgumentException()
     {
-        // Arrange
-        var raw = new Dictionary<string, object?>
-        {
-            ["id"] = "abc-123",
-            ["timestamp"] = 1234567890,
-            ["payload"] = JsonSerializer.Deserialize<JsonElement>("""{"foo":"bar"}""")
-        };
+        IncomingMessageScenario.Given()
+            .WithId("abc-123")
+            .WithTimestamp(1234567890)
+            .WithValidPayload()
+            .ShouldThrow()
+            .ArgumentException("timestamp");
+    }
 
-        // Act
-        Action act = () => IncomingMessageTdd.Parse(raw);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-           .WithMessage("*timestamp*");
+    [Fact]
+    public void Parse_WrongPayloadType_ThrowsArgumentException()
+    {
+        IncomingMessageScenario.Given()
+            .WithId("abc-123")
+            .WithTimestamp("2023-01-01T12:00:00+02:00")
+            .WithPayload(JsonSerializer.Deserialize<JsonElement>("\"not-an-object\""))
+            .ShouldThrow()
+            .ArgumentException("payload");
     }
 }

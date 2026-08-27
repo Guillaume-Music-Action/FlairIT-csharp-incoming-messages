@@ -20,3 +20,6 @@ If the input dictionary contains an `id` field that is not a string, `Parse` thr
 
 **Rule 7** – *Wrong timestamp type throws ArgumentException*  
 If the input dictionary contains a `timestamp` field that is not a string, `Parse` throws `ArgumentException` mentioning the invalid type.
+
+**Rule 8** – *Wrong payload type throws ArgumentException*  
+If the input dictionary contains a `payload` field that is not a JSON object, `Parse` throws `ArgumentException` mentioning the invalid type.

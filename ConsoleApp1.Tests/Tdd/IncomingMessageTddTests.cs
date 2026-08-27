@@ -83,4 +83,42 @@ public class IncomingMessageTddTests
         act.Should().Throw<ArgumentException>()
            .WithMessage("*payload*");
     }
+
+    [Fact]
+    public void Parse_InvalidTimestamp_ThrowsFormatException()
+    {
+        // Arrange
+        var raw = new Dictionary<string, object?>
+        {
+            ["id"] = "abc-123",
+            ["timestamp"] = "not-a-valid-timestamp",
+            ["payload"] = JsonSerializer.Deserialize<JsonElement>("""{"foo":"bar"}""")
+        };
+
+        // Act
+        Action act = () => IncomingMessageTdd.Parse(raw);
+
+        // Assert
+        act.Should().Throw<FormatException>()
+           .WithMessage("*not-a-valid-timestamp*");
+    }
+
+    [Fact]
+    public void Parse_WrongIdType_ThrowsArgumentException()
+    {
+        // Arrange
+        var raw = new Dictionary<string, object?>
+        {
+            ["id"] = 123,
+            ["timestamp"] = "2023-01-01T12:00:00+02:00",
+            ["payload"] = JsonSerializer.Deserialize<JsonElement>("""{"foo":"bar"}""")
+        };
+
+        // Act
+        Action act = () => IncomingMessageTdd.Parse(raw);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+           .WithMessage("*id*");
+    }
 }

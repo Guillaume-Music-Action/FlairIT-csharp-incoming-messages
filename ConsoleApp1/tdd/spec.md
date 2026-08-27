@@ -11,3 +11,12 @@ If the input dictionary lacks the `timestamp` field (or it is null), `Parse` thr
 
 **Rule 4** – *Missing payload throws ArgumentException*  
 If the input dictionary lacks the `payload` field (or it is null), `Parse` throws `ArgumentException` mentioning the missing field.
+
+**Rule 5** – *Invalid timestamp throws FormatException*  
+If the input dictionary contains a `timestamp` field that cannot be parsed as ISO‑8601, `Parse` throws `FormatException` mentioning the invalid value.
+
+**Rule 6** – *Wrong id type throws ArgumentException*  
+If the input dictionary contains an `id` field that is not a string, `Parse` throws `ArgumentException` mentioning the invalid type.
+
+**Rule 7** – *Wrong timestamp type throws ArgumentException*  
+If the input dictionary contains a `timestamp` field that is not a string, `Parse` throws `ArgumentException` mentioning the invalid type.

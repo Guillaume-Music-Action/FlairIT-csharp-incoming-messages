@@ -8,7 +8,9 @@ public sealed record IncomingMessageTdd(string Id, DateTimeOffset Timestamp, Jso
 {
     public static IncomingMessageTdd Parse(Dictionary<string, object?> raw)
     {
-        var id = (string)raw["id"]!;
+        if (!raw.TryGetValue("id", out var idObj) || idObj is not string id)
+            throw new ArgumentException("Missing or invalid 'id' field.");
+
         var timestampRaw = (string)raw["timestamp"]!;
         var payloadElement = (JsonElement)raw["payload"]!;
 

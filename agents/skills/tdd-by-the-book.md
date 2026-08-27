@@ -26,9 +26,11 @@ code exists because a failing test demanded it — never ahead of it.
    yet, even if the spec/doc mentions them. "Fake it" (e.g. return a constant,
    skip validation) is an acceptable and often correct green step. Run only the
    targeted test file to confirm.
-4. **Refactor** — with the test green, clean up duplication or naming in either
-   the test or the production code. Re-run the targeted test file to confirm
-   still green. No behavior change.
+4. **Refactor** — with the test green, **immediately tackle code smells and
+   technical debt** (duplication, primitive obsession, magic strings, ignored
+   results, inconsistent errors, god methods, missing helpers). Clean up
+   duplication or naming in either the test or the production code. Re-run the
+   targeted test file to confirm still green. No behavior change. No new test added.
 5. **Verify** — run mutation testing scoped to only the source file just
    touched, e.g. `pnpm exec stryker run --mutate '<path/to/source>.ts'`. A
    surviving mutant means the code contains a branch, condition, or literal no
@@ -64,6 +66,9 @@ test's.
   each cycle, not the whole suite — a full-suite run is for a final sanity check,
   not for driving the loop
 - run mutation testing after each green step to prove no untested code was written
+- **refactor immediately after Green** — eliminate duplication, primitive obsession,
+  magic strings, ignored results, inconsistent errors, god methods, missing helpers
+  before writing the next test
 - commit as soon as a test goes green with zero surviving mutants, before moving
   to the next test
 - when a mutant survives, report it and propose a fix, then wait for confirmation

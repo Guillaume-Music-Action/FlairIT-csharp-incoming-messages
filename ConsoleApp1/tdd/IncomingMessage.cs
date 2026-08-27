@@ -8,17 +8,32 @@ public sealed record IncomingMessageTdd(string Id, DateTimeOffset Timestamp, Jso
 {
     public static IncomingMessageTdd Parse(Dictionary<string, object?> raw)
     {
-        if (!raw.TryGetValue("id", out var idObj) || idObj is not string id)
-            throw new ArgumentException("Missing or invalid 'id' field.");
+        var id = ExtractString(raw, "id", "id");
+        var timestampRaw = ExtractString(raw, "timestamp", "timestamp");
+        var payload = ExtractPayload(raw);
+        var timestamp = ParseTimestamp(timestampRaw);
+        return new IncomingMessageTdd(id, timestamp, payload);
+    }
 
-        if (!raw.TryGetValue("timestamp", out var tsObj) || tsObj is not string timestampRaw)
-            throw new ArgumentException("Missing or invalid 'timestamp' field.");
+    private static string ExtractString(Dictionary<string, object?> dict, string key, string fieldName)
+    {
+        if (!dict.TryGetValue(key, out var v) || v is not string s)
+            throw new ArgumentException($"Missing or invalid '{fieldName}' field.");
+        return s;
+    }
 
-        var payloadElement = (JsonElement)raw["payload"]!;
+    private static JsonElement ExtractPayload(Dictionary<string, object?> dict)
+    {
+        if (!dict.TryGetValue("payload", out var v) || v is not JsonElement { ValueKind: JsonValueKind.Object } je)
+            throw new ArgumentException("Missing or invalid 'payload' field.");
+        return je;
+    }
 
-        DateTimeOffset.TryParse(timestampRaw, CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var parsedTimestamp);
-
-        return new IncomingMessageTdd(id, parsedTimestamp, payloadElement);
+    private static DateTimeOffset ParseTimestamp(string raw)
+    {
+        if (!DateTimeOffset.TryParse(raw, CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var dt))
+            throw new FormatException($"Invalid timestamp '{raw}'.");
+        return dt;
     }
 }

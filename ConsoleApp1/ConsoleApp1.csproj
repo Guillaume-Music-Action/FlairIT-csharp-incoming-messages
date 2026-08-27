@@ -11,4 +11,8 @@
         <InternalsVisibleTo Include="ConsoleApp1.Tests" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="tdd\" />
+    </ItemGroup>
+
 </Project>

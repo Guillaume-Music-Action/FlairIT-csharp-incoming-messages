@@ -5,3 +5,6 @@ Given a dictionary containing the required fields `id` (string), `timestamp` (IS
 
 **Rule 2** – *Missing required field throws ArgumentException*  
 If the input dictionary lacks the `id` field (or it is null), `Parse` throws `ArgumentException` mentioning the missing field.
+
+**Rule 3** – *Missing timestamp throws ArgumentException*  
+If the input dictionary lacks the `timestamp` field (or it is null), `Parse` throws `ArgumentException` mentioning the missing field.

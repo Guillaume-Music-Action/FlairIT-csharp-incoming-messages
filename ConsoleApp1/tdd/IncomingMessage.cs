@@ -11,7 +11,9 @@ public sealed record IncomingMessageTdd(string Id, DateTimeOffset Timestamp, Jso
         if (!raw.TryGetValue("id", out var idObj) || idObj is not string id)
             throw new ArgumentException("Missing or invalid 'id' field.");
 
-        var timestampRaw = (string)raw["timestamp"]!;
+        if (!raw.TryGetValue("timestamp", out var tsObj) || tsObj is not string timestampRaw)
+            throw new ArgumentException("Missing or invalid 'timestamp' field.");
+
         var payloadElement = (JsonElement)raw["payload"]!;
 
         DateTimeOffset.TryParse(timestampRaw, CultureInfo.InvariantCulture,

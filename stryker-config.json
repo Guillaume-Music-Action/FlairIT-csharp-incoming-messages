@@ -1,0 +1,10 @@
+{
+  "stryker-config": {
+    "mutate": ["ConsoleApp1/tdd/IncomingMessage.cs"],
+    "reporters": ["Progress", "ClearText"],
+    "mutation-level": "Complete",
+    "disable-bail": true,
+    "project": "ConsoleApp1/ConsoleApp1.csproj",
+    "test-projects": ["ConsoleApp1.Tests/ConsoleApp1.Tests.csproj"]
+  }
+}

@@ -26,6 +26,7 @@ public sealed record IncomingMessageTdd(string Id, DateTimeOffset Timestamp, Jso
     {
         if (!dict.TryGetValue("payload", out var v) || v is not JsonElement { ValueKind: JsonValueKind.Object } je)
             throw new ArgumentException("Missing or invalid 'payload' field.");
+
         return je;
     }
 

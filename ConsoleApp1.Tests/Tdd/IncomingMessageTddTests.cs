@@ -65,4 +65,22 @@ public class IncomingMessageTddTests
         act.Should().Throw<ArgumentException>()
            .WithMessage("*timestamp*");
     }
+
+    [Fact]
+    public void Parse_MissingPayload_ThrowsArgumentException()
+    {
+        // Arrange
+        var raw = new Dictionary<string, object?>
+        {
+            ["id"] = "abc-123",
+            ["timestamp"] = "2023-01-01T12:00:00+02:00"
+        };
+
+        // Act
+        Action act = () => IncomingMessageTdd.Parse(raw);
+
+        // Assert
+        act.Should().Throw<ArgumentException>()
+           .WithMessage("*payload*");
+    }
 }

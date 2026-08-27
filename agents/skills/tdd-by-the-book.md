@@ -1,4 +1,4 @@
-# Skill: tdd-by-the-book
+# Skill: tdd-by-the-book (.NET Core / C#)
 
 ## Use when
 
@@ -13,14 +13,13 @@ code exists because a failing test demanded it — never ahead of it.
 
 ## The loop
 
-1. **Name the rule** — before writing any TypeScript, state the single behavior
+1. **Name the rule** — before writing any C#, state the single behavior
    being tested next as one plain-English sentence in the domain's `*.spec.md`
    (or equivalent doc). If the rule already exists there, point to it instead of
    restating it. This sentence is what the next test's name/assertions must match.
 2. **Red** — write **one** small test for that plain-English rule. Run only that
-   test file, e.g. `pnpm test -- <path/to>.spec.ts`. Confirm it fails, and
-   confirm *why*: a missing module/class/method, not a typo or a broken test
-   harness.
+   test file, e.g. `dotnet test --filter "FullyQualifiedName=MyTest"`. Confirm it fails, and
+   confirm *why*: a missing type/method, not a typo or a broken test harness.
 3. **Green** — write the **minimum** production code to make that one test pass.
    Do not implement invariants, branches, or parameters no test has asked for
    yet, even if the spec/doc mentions them. "Fake it" (e.g. return a constant,
@@ -32,7 +31,7 @@ code exists because a failing test demanded it — never ahead of it.
    duplication or naming in either the test or the production code. Re-run the
    targeted test file to confirm still green. No behavior change. No new test added.
 5. **Verify** — run mutation testing scoped to only the source file just
-   touched, e.g. `pnpm exec stryker run --mutate '<path/to/source>.ts'`. A
+   touched, e.g. `dotnet stryker --project MyProject --target-file MyFile.cs`. A
    surviving mutant means the code contains a branch, condition, or literal no
    test pins down. Report the surviving mutant(s) and **stop** — do not add a test to kill it without discussing the fix
    first : it may call for removing untested code, or for adding a new test, but that may also need to discuss a plain
@@ -45,7 +44,7 @@ code exists because a failing test demanded it — never ahead of it.
 
 ## Property-based tests
 
-Add property-based tests (`fast-check`) alongside the example-based ones for behaviors defined over a range of inputs
+Add property-based tests (`FsCheck` / `CsCheck`) alongside the example-based ones for behaviors defined over a range of inputs
 rather than discrete cases. If fixing a failing property means loosening, narrowing, or bounding what it checks, update
 `*.spec.md` with a matching rule in the same change — a property's assertion is part of the spec, same as an example
 test's.
@@ -53,7 +52,7 @@ test's.
 ## Do
 
 - write the plain-English rule in the spec markdown before writing the
-  corresponding TypeScript test — never the reverse
+  corresponding C# test — never the reverse
 - write only one failing test before writing any implementation
 - run the test and observe the actual failure before writing a line of production code
 - treat "it compiles/passes on the first try" as a signal something is wrong —
@@ -85,7 +84,7 @@ test's.
   upfront instead of as a backlog of future failing tests
 - skipping the "confirm it fails" step
 - adding a test to kill a surviving mutant without first discussing it with the user
-- fixing a failing property-based test by only editing the `*.ts` test file without updating `*.spec.md`
+- fixing a failing property-based test by only editing the test file without updating `*.spec.md`
 
 ## Deliverables
 

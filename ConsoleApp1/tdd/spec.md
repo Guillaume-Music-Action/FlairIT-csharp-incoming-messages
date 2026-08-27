@@ -8,3 +8,6 @@ If the input dictionary lacks the `id` field (or it is null), `Parse` throws `Ar
 
 **Rule 3** – *Missing timestamp throws ArgumentException*  
 If the input dictionary lacks the `timestamp` field (or it is null), `Parse` throws `ArgumentException` mentioning the missing field.
+
+**Rule 4** – *Missing payload throws ArgumentException*  
+If the input dictionary lacks the `payload` field (or it is null), `Parse` throws `ArgumentException` mentioning the missing field.

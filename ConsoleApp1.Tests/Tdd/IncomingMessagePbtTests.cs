@@ -1,194 +1,186 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.Json;
 using ConsoleApp1.Tdd;
 using ConsoleApp1.Tests.Tooling;
 using FsCheck;
+using FsCheck.Fluent;
 using FsCheck.Xunit;
 using Xunit;
 using AwesomeAssertions;
 
 namespace ConsoleApp1.Tests.Tdd;
 
+/// <summary>
+/// Property-based mirror of <see cref="IncomingMessageTddTests"/>.
+///
+/// FsCheck picks a generator by the *parameter type*, not by a parameter name: each
+/// [Property] below declares <c>Arbitrary = new[] { typeof(Arbitraries) }</c>, and FsCheck
+/// matches each parameter to the <see cref="Arbitrary{T}"/>-returning member of that class
+/// whose <c>T</c> equals the parameter type. Wrapper structs (<see cref="ValidId"/> …) give
+/// each "kind" of value its own type so several <c>string</c>/<c>object?</c> generators can
+/// coexist in one signature.
+/// </summary>
 public class IncomingMessagePbtTests
 {
-    // --- Generators ---
+    // --- Wrapper types: one per generated "kind" so FsCheck can tell them apart ---
 
-    private static Gen<string> NonEmptyStringGen =>
-        Arb.Generate<string>()
-            .Where(s => !string.IsNullOrWhiteSpace(s));
+    public readonly record struct ValidId(string Value);
+    public readonly record struct ValidTimestamp(string Value);
+    public readonly record struct ValidPayload(JsonElement Value);
+    public readonly record struct InvalidId(object? Value);
+    public readonly record struct InvalidTimestampType(object? Value);
+    public readonly record struct InvalidPayload(object? Value);
 
-    private static Gen<string> ValidTimestampGen =>
-        Gen.Choose(DateTimeOffset.UnixEpoch, DateTimeOffset.UtcNow.AddYears(10))
-            .Select(dt => dt.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture));
+    // --- Generators, exposed as Arbitrary<T> keyed by the wrapper type ---
 
-    private static Gen<JsonElement> ValidPayloadGen =>
-        Gen.Elements(
-                JsonSerializer.Deserialize<JsonElement>("""{"a":1}"""),
-                JsonSerializer.Deserialize<JsonElement>("""{"b":"x"}"""),
-                JsonSerializer.Deserialize<JsonElement>("""{"nested":{"c":true}}""")
-            );
+    public static class Arbitraries
+    {
+        private static readonly JsonElement[] ObjectPayloads =
+        {
+            JsonSerializer.Deserialize<JsonElement>("""{"a":1}"""),
+            JsonSerializer.Deserialize<JsonElement>("""{"b":"x"}"""),
+            JsonSerializer.Deserialize<JsonElement>("""{"nested":{"c":true}}"""),
+        };
 
-    private static Gen<object?> InvalidIdGen =>
-        Gen.Elements(123, 12.5, true, new List<int>(), null);
-
-    private static Gen<object?> InvalidTimestampGen =>
-        Gen.Elements(1234567890L, 12.5, true, new List<int>(), null);
-
-    private static Gen<object?> InvalidPayloadGen =>
-        Gen.Elements(
+        private static readonly JsonElement[] NonObjectPayloads =
+        {
             JsonSerializer.Deserialize<JsonElement>("\"string\""),
             JsonSerializer.Deserialize<JsonElement>("123"),
             JsonSerializer.Deserialize<JsonElement>("true"),
             JsonSerializer.Deserialize<JsonElement>("[]"),
-            "not-a-jsonelement",
-            42,
-            null
-        );
+        };
 
-    // --- Properties ---
+        public static Arbitrary<ValidId> ValidId() =>
+            ArbMap.Default.ArbFor<string>()
+                .Generator
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => new ValidId(s))
+                .ToArbitrary();
 
-    [Property]
-    public Property Parse_ValidInputs_RoundtripsCorrectly(
-        NonEmptyStringGen id, ValidTimestampGen timestamp, ValidPayloadGen payload)
-    {
-        var raw = IncomingMessageScenario.Given()
-            .WithId(id)
-            .WithTimestamp(timestamp)
-            .WithPayload(payload);
+        public static Arbitrary<ValidTimestamp> ValidTimestamp() =>
+            // Seconds since the Unix epoch, up to ~10 years past 2020, formatted as ISO8601 'Z'.
+            Gen.Choose(0, 1_600_000_000)
+                .Select(secs => DateTimeOffset.UnixEpoch.AddSeconds(secs))
+                .Select(dt => new ValidTimestamp(
+                    dt.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture)))
+                .ToArbitrary();
 
-        var result = raw.Parse();
+        public static Arbitrary<ValidPayload> ValidPayload() =>
+            Gen.Elements(ObjectPayloads)
+                .Select(e => new ValidPayload(e))
+                .ToArbitrary();
 
-        return (result.Id == id
-            && result.Timestamp.ToString("yyyy-MM-ddTHH:mm:ssZ", System.Globalization.CultureInfo.InvariantCulture) == timestamp
-            && result.Payload.ValueKind == JsonValueKind.Object)
-            .ToProperty()
-            .Label($"id={id}, timestamp={timestamp}, payloadKind={payload.ValueKind}");
+        public static Arbitrary<InvalidId> InvalidId() =>
+            Gen.Elements<object?>(123, 12.5, true, new List<int>())
+                .Select(o => new InvalidId(o))
+                .ToArbitrary();
+
+        public static Arbitrary<InvalidTimestampType> InvalidTimestampType() =>
+            Gen.Elements<object?>(1234567890L, 12.5, true, new List<int>())
+                .Select(o => new InvalidTimestampType(o))
+                .ToArbitrary();
+
+        public static Arbitrary<InvalidPayload> InvalidPayload() =>
+            Gen.OneOf(
+                    Gen.Elements(NonObjectPayloads).Select(e => (object?)e),
+                    Gen.Elements<object?>("not-a-jsonelement", 42))
+                .Select(o => new InvalidPayload(o))
+                .ToArbitrary();
     }
 
-    [Property]
-    public Property Parse_MissingId_ThrowsArgumentException(
-        ValidTimestampGen timestamp, ValidPayloadGen payload)
+    // --- Properties (one per IncomingMessageTddTests fact) ---
+
+    [Property(Arbitrary = new[] { typeof(Arbitraries) })]
+    public void Parse_ValidInputs_RoundtripCorrectly(ValidId id, ValidTimestamp timestamp, ValidPayload payload)
     {
-        var act = IncomingMessageScenario.Given()
+        var result = IncomingMessageScenario.Given()
+            .WithId(id.Value)
+            .WithTimestamp(timestamp.Value)
+            .WithPayload(payload.Value)
+            .Parse();
+
+        result.Id.Should().Be(id.Value);
+        result.Timestamp.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture)
+            .Should().Be(timestamp.Value);
+        result.Payload.ValueKind.Should().Be(JsonValueKind.Object);
+    }
+
+    [Property(Arbitrary = new[] { typeof(Arbitraries) })]
+    public void Parse_MissingId_ThrowsArgumentException(ValidTimestamp timestamp, ValidPayload payload)
+    {
+        IncomingMessageScenario.Given()
             .WithoutId()
-            .WithTimestamp(timestamp)
-            .WithPayload(payload)
-            .Parsing();
-
-        return Prop.ForAll(_ => 
-        {
-            try { act(); return false; }
-            catch (ArgumentException ex) when (ex.Message.Contains("id")) { return true; }
-            catch { return false; }
-        }).Label("missing id");
+            .WithTimestamp(timestamp.Value)
+            .WithPayload(payload.Value)
+            .Parsing()
+            .Should().Throw<ArgumentException>().WithMessage("*id*");
     }
 
-    [Property]
-    public Property Parse_MissingTimestamp_ThrowsArgumentException(
-        NonEmptyStringGen id, ValidPayloadGen payload)
+    [Property(Arbitrary = new[] { typeof(Arbitraries) })]
+    public void Parse_MissingTimestamp_ThrowsArgumentException(ValidId id, ValidPayload payload)
     {
-        var act = IncomingMessageScenario.Given()
-            .WithId(id)
+        IncomingMessageScenario.Given()
+            .WithId(id.Value)
             .WithoutTimestamp()
-            .WithPayload(payload)
-            .Parsing();
-
-        return Prop.ForAll(_ => 
-        {
-            try { act(); return false; }
-            catch (ArgumentException ex) when (ex.Message.Contains("timestamp")) { return true; }
-            catch { return false; }
-        }).Label("missing timestamp");
+            .WithPayload(payload.Value)
+            .Parsing()
+            .Should().Throw<ArgumentException>().WithMessage("*timestamp*");
     }
 
-    [Property]
-    public Property Parse_MissingPayload_ThrowsArgumentException(
-        NonEmptyStringGen id, ValidTimestampGen timestamp)
+    [Property(Arbitrary = new[] { typeof(Arbitraries) })]
+    public void Parse_MissingPayload_ThrowsArgumentException(ValidId id, ValidTimestamp timestamp)
     {
-        var act = IncomingMessageScenario.Given()
-            .WithId(id)
-            .WithTimestamp(timestamp)
+        IncomingMessageScenario.Given()
+            .WithId(id.Value)
+            .WithTimestamp(timestamp.Value)
             .WithoutPayload()
-            .Parsing();
-
-        return Prop.ForAll(_ => 
-        {
-            try { act(); return false; }
-            catch (ArgumentException ex) when (ex.Message.Contains("payload")) { return true; }
-            catch { return false; }
-        }).Label("missing payload");
+            .Parsing()
+            .Should().Throw<ArgumentException>().WithMessage("*payload*");
     }
 
-    [Property]
-    public Property Parse_InvalidTimestamp_ThrowsFormatException(
-        NonEmptyStringGen id, ValidPayloadGen payload)
+    [Property(Arbitrary = new[] { typeof(Arbitraries) })]
+    public void Parse_InvalidTimestamp_ThrowsFormatException(ValidId id, ValidPayload payload)
     {
-        var act = IncomingMessageScenario.Given()
-            .WithId(id)
+        IncomingMessageScenario.Given()
+            .WithId(id.Value)
             .WithTimestamp("not-a-timestamp")
-            .WithPayload(payload)
-            .Parsing();
-
-        return Prop.ForAll(_ => 
-        {
-            try { act(); return false; }
-            catch (FormatException ex) when (ex.Message.Contains("not-a-timestamp")) { return true; }
-            catch { return false; }
-        }).Label("invalid timestamp");
+            .WithPayload(payload.Value)
+            .Parsing()
+            .Should().Throw<FormatException>().WithMessage("*not-a-timestamp*");
     }
 
-    [Property]
-    public Property Parse_WrongIdType_ThrowsArgumentException(
-        InvalidIdGen badId, ValidTimestampGen timestamp, ValidPayloadGen payload)
+    [Property(Arbitrary = new[] { typeof(Arbitraries) })]
+    public void Parse_WrongIdType_ThrowsArgumentException(InvalidId badId, ValidTimestamp timestamp, ValidPayload payload)
     {
-        var act = IncomingMessageScenario.Given()
-            .WithId(badId)
-            .WithTimestamp(timestamp)
-            .WithPayload(payload)
-            .Parsing();
-
-        return Prop.ForAll(_ => 
-        {
-            try { act(); return false; }
-            catch (ArgumentException ex) when (ex.Message.Contains("id")) { return true; }
-            catch { return false; }
-        }).Label($"bad id type");
+        IncomingMessageScenario.Given()
+            .WithId(badId.Value)
+            .WithTimestamp(timestamp.Value)
+            .WithPayload(payload.Value)
+            .Parsing()
+            .Should().Throw<ArgumentException>().WithMessage("*id*");
     }
 
-    [Property]
-    public Property Parse_WrongTimestampType_ThrowsArgumentException(
-        NonEmptyStringGen id, InvalidTimestampGen badTs, ValidPayloadGen payload)
+    [Property(Arbitrary = new[] { typeof(Arbitraries) })]
+    public void Parse_WrongTimestampType_ThrowsArgumentException(ValidId id, InvalidTimestampType badTs, ValidPayload payload)
     {
-        var act = IncomingMessageScenario.Given()
-            .WithId(id)
-            .WithTimestamp(badTs)
-            .WithPayload(payload)
-            .Parsing();
-
-        return Prop.ForAll(_ => 
-        {
-            try { act(); return false; }
-            catch (ArgumentException ex) when (ex.Message.Contains("timestamp")) { return true; }
-            catch { return false; }
-        }).Label($"bad timestamp type");
+        IncomingMessageScenario.Given()
+            .WithId(id.Value)
+            .WithTimestamp(badTs.Value)
+            .WithPayload(payload.Value)
+            .Parsing()
+            .Should().Throw<ArgumentException>().WithMessage("*timestamp*");
     }
 
-    [Property]
-    public Property Parse_WrongPayloadType_ThrowsArgumentException(
-        NonEmptyStringGen id, ValidTimestampGen timestamp, InvalidPayloadGen badPayload)
+    [Property(Arbitrary = new[] { typeof(Arbitraries) })]
+    public void Parse_WrongPayloadType_ThrowsArgumentException(ValidId id, ValidTimestamp timestamp, InvalidPayload badPayload)
     {
-        var act = IncomingMessageScenario.Given()
-            .WithId(id)
-            .WithTimestamp(timestamp)
-            .WithPayload(badPayload)
-            .Parsing();
-
-        return Prop.ForAll(_ => 
-        {
-            try { act(); return false; }
-            catch (ArgumentException ex) when (ex.Message.Contains("payload")) { return true; }
-            catch { return false; }
-        }).Label($"bad payload type");
+        IncomingMessageScenario.Given()
+            .WithId(id.Value)
+            .WithTimestamp(timestamp.Value)
+            .WithPayload(badPayload.Value)
+            .Parsing()
+            .Should().Throw<ArgumentException>().WithMessage("*payload*");
     }
 }
